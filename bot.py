@@ -3,8 +3,6 @@ from discord.ext import commands
 import sqlite3
 from dotenv import load_dotenv
 import os
-import random
-import datetime
 
 load_dotenv()
 

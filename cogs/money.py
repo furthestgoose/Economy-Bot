@@ -14,38 +14,38 @@ class money(commands.Cog):
     async def add_coins(self, ctx, target_user: discord.Member, amount: int):
         if ctx.author.guild_permissions.administrator:
             if target_user.bot:
-                await ctx.send("You cannot give to a bot!")
+                await ctx.respond("You cannot give to a bot!")
                 return
             user_id = target_user.id
             self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (amount, user_id))
             self.conn.commit()
-            await ctx.send(f"You've added {amount:,} coins to {target_user.display_name}'s balance.")
+            await ctx.respond(f"You've added {amount:,} coins to {target_user.display_name}'s balance.")
             guild_name = ctx.guild.name
             await target_user.send(f"{ctx.author.display_name} added {amount:,} coins to your balance in {guild_name}!")
         else:
-            await ctx.send("Only administrators can use this command.")
+            await ctx.respond("Only administrators can use this command.")
 
     @discord.slash_command(name="remove", description="Remove coins from a user's balance")
     async def remove_coins(self, ctx, target_user: discord.Member, amount: int):
         if ctx.author.guild_permissions.administrator:
             if target_user.bot:
-                await ctx.send("You cannot take from a bot!")
+                await ctx.respond("You cannot take from a bot!")
                 return
             user_id = target_user.id
             self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
             row = self.c.fetchone()
             if row is None:
-                await ctx.send("The target user doesn't have a balance yet.")
+                await ctx.respond("The target user doesn't have a balance yet.")
             elif row[0] < amount:
-                await ctx.send("The target user doesn't have enough coins.")
+                await ctx.respond("The target user doesn't have enough coins.")
             else:
                 self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (amount, user_id))
                 self.conn.commit()
-                await ctx.send(f"You've removed {amount:,} coins from {target_user.display_name}'s balance.")
+                await ctx.respond(f"You've removed {amount:,} coins from {target_user.display_name}'s balance.")
                 guild_name = ctx.guild.name
                 await target_user.send(f"{ctx.author.display_name} removed {amount:,} coins from your balance in {guild_name}!")
         else:
-            await ctx.send("You do not have permission to use this command.")
+            await ctx.send("Only administrators can use this command.")
     @discord.slash_command(name="steal", description="Attempt to steal coins from another user")
     async def steal(self,ctx, target_user: discord.Member):
     # Check if the target user is the same as the user invoking the command
@@ -163,7 +163,7 @@ class money(commands.Cog):
             leaderboard.append(f"{idx}. {user.name}: {balance:,} coins")
         embed = discord.Embed(
             title="Leaderboard",
-            description="/n".join(leaderboard),
+            description="\n".join(leaderboard),
             color=discord.Colour.yellow(),
             )
         await ctx.respond(embed=embed)
