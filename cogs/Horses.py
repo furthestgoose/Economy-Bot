@@ -379,7 +379,7 @@ class Horses(commands.Cog):
             await ctx.respond(embed=embed)
 
     @discord.slash_command(name="horse-race", description="Initiate a horse race and place a bet")
-    async def horse_race(self, ctx, amount: int):
+    async def horse_race(self, ctx, bet: int):
         user_id = ctx.author.id
 
         # Retrieve the user's horse
@@ -414,9 +414,9 @@ class Horses(commands.Cog):
 
         # Check if the user's horse won
         if race_results['winner'] == user_horse[1]:
-            payout = amount * 4
-            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (payout, ctx.author.id))
-            message += f"\nCongratulations! Your horse won the race. You've received {payout} coins."
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*4, user_id))
+            self.conn.commit()
+            message += f"\nCongratulations! Your horse won the race. You've received {bet*4} coins."
             embed = discord.Embed(
                             title= "You Win",
                             description=message,
@@ -424,6 +424,8 @@ class Horses(commands.Cog):
                         )
             await ctx.respond(embed=embed)
         else:
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (bet, user_id))
+            self.conn.commit()
             message += "\nBetter luck next time!"
             embed = discord.Embed(
                             title= "You lose",
