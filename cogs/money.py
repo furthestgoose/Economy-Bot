@@ -47,6 +47,7 @@ class money(commands.Cog):
         else:
             await ctx.send("Only administrators can use this command.")
     @discord.slash_command(name="steal", description="Attempt to steal coins from another user")
+    @commands.cooldown(1, 300, commands.BucketType.user)  # 1800 seconds = 30 minutes
     async def steal(self,ctx, target_user: discord.Member):
     # Check if the target user is the same as the user invoking the command
         if target_user == ctx.author:
@@ -184,6 +185,17 @@ class money(commands.Cog):
             else:
                 balance = row[0]
                 embed = discord.Embed(title="User Balance", description=f"{target_user.display_name}'s balance is {balance:,} coins.", color=discord.Colour.yellow(),)
+            await ctx.respond(embed=embed)
+
+    @steal.error
+    async def slot_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            retry_after = error.retry_after
+            embed = discord.Embed(
+                title="Cooldown",
+                description=f"You can only initiate a steal once every 5 minutes. Try again in {int(retry_after):,} seconds.",
+                color=discord.Colour.red(),
+            )
             await ctx.respond(embed=embed)
 
 

@@ -214,6 +214,7 @@ class Games(commands.Cog):
             await ctx.respond(f"Your hand: {player_hand_str}\nTotal: {player_total}\nDealer's first card: {dealer_first_card}\nThe dealer stands on 17", view=view)
 
     @discord.slash_command(name="slots", description="Play the Slots")
+    @commands.cooldown(1, 120, commands.BucketType.user)
     async def slot(self, ctx, bet: int):
         user_id = ctx.author.id
         self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
@@ -223,7 +224,7 @@ class Games(commands.Cog):
             return
 
         symbols = ['\U0001F34E', '\U0001F352', '\U0001F36C', '\U0001F34A', '\U0001F347', '\U0001F349', '\U0001F353']
-        symbol_probabilities = [0.1, 0.1, 0.05, 0.03, 0.03, 0.03, 0.03]  # Probabilities for winning combinations
+        symbol_probabilities = [0.22, 0.18, 0.14, 0.12, 0.12, 0.1, 0.12]
         spin_result = [random.choices(symbols, weights=symbol_probabilities)[0] for _ in range(3)]
         result_str = "".join(spin_result)
 
@@ -236,17 +237,28 @@ class Games(commands.Cog):
 
         # Check for winning combinations
         if len(set(spin_result)) == 2:
-            await ctx.respond(content=f"Congratulations! You won {bet*3:,} coins for two matches!", embed=embed)
+            await ctx.respond(content=f"Congratulations! You won {bet*2:,} coins for two matches!", embed=embed)
             self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*3, user_id))
             self.conn.commit()
         elif len(set(spin_result)) == 1:
-            await ctx.respond(content=f"Congratulations! You won {bet*10:,} coins for three matches!", embed=embed)
+            await ctx.respond(content=f"Congratulations! You won {bet*5:,} coins for three matches!", embed=embed)
             self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*10, user_id))
             self.conn.commit()
         else:
             await ctx.respond(content=f"You lost {bet:,} coins, better luck next time!", embed=embed)
             self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (bet, user_id))
             self.conn.commit()
+
+    @slot.error
+    async def slot_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            retry_after = error.retry_after
+            embed = discord.Embed(
+                title="Cooldown",
+                description=f"You can only initiate slots once every 2 minutes. Try again in {int(retry_after):,} seconds.",
+                color=discord.Colour.red(),
+            )
+            await ctx.respond(embed=embed)
 
 
 def setup(bot):

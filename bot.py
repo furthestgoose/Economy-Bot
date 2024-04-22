@@ -53,10 +53,10 @@ async def on_guild_join(guild):
         # Insert randomly generated horses into the database
         for i in range(1, 3 + 1):
             name = random.choice(horse_names) + str(i)
-            price = random.randint(1000, 10000)  # Random price between 100 and 1000 coins
-            speed = random.randint(1, 5)      # Random speed between 1 and 10
-            stamina = random.randint(1, 5)    # Random stamina between 1 and 10
-            strength = random.randint(1, 5)   # Random strength between 1 and 10
+            price = random.randint(100000, 500000)  # Random price between 100 and 1000 coins
+            speed = random.randint(1, 10)      # Random speed between 1 and 10
+            stamina = random.randint(1, 10)    # Random stamina between 1 and 10
+            strength = random.randint(1, 10)   # Random strength between 1 and 10
             c.execute('INSERT INTO horses (name, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?)', (name, price, speed, stamina, strength))
             conn.commit()
 @bot.event

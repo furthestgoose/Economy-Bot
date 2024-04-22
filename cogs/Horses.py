@@ -46,7 +46,7 @@ class Horses(commands.Cog):
                         self.conn.commit()
                         embed = discord.Embed(
                             title= "Horse Purchase",
-                            description=f"You've successfully purchased {name} for {price} coins!",
+                            description=f"You've successfully purchased {name} for {price:,} coins!",
                             color=discord.Colour.green(),
                         )
                         await ctx.respond(embed=embed)
@@ -76,7 +76,7 @@ class Horses(commands.Cog):
                 horse_info = []
                 for horse in horses:
                     horse_id,name, owner_id, price, speed, stamina, strength = horse
-                    horse_info.append(f"Name: {name}, Price: {price}, Speed: {speed}, Stamina: {stamina}, Strength: {strength}")
+                    horse_info.append(f"Name: {name}, Price: {price:,}, Speed: {speed}, Stamina: {stamina}, Strength: {strength}")
 
                 # Send the formatted list of horses as a message
                 embed = discord.Embed(
@@ -125,17 +125,17 @@ class Horses(commands.Cog):
         if current_speed == 10:
             return None
         else:
-            return 3000 + (current_speed * 4000)  # Example: Base cost of 100 + 50 for each level
+            return 30000 + (current_speed * 40000)  # Example: Base cost of 100 + 50 for each level
     def calculate_strength_upgrade_cost(self, current_strength):
         if current_strength == 10:
             return None
         else:
-            return 1000 + (current_strength * 1000)
+            return 10000 + (current_strength * 10000)
     def calculate_stamina_upgrade_cost(self, current_stamina):
         if current_stamina == 10:
             return None
         else:
-            return 2000 + (current_stamina * 3000)
+            return 20000 + (current_stamina * 30000)
 
     @discord.slash_command(name="improve-horse-speed", description="pay to increase your horse speed")
     async def improve_speed(self, ctx):
@@ -379,6 +379,7 @@ class Horses(commands.Cog):
             await ctx.respond(embed=embed)
 
     @discord.slash_command(name="horse-race", description="Initiate a horse race and place a bet")
+    @commands.cooldown(1, 1800, commands.BucketType.user)  # 1800 seconds = 30 minutes
     async def horse_race(self, ctx, bet: int):
         user_id = ctx.author.id
 
@@ -416,7 +417,7 @@ class Horses(commands.Cog):
         if race_results['winner'] == user_horse[1]:
             self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*4, user_id))
             self.conn.commit()
-            message += f"\nCongratulations! Your horse won the race. You've received {bet*4} coins."
+            message += f"\nCongratulations! Your horse won the race. You've received {bet*4:,} coins."
             embed = discord.Embed(
                             title= "You Win",
                             description=message,
@@ -456,6 +457,17 @@ class Horses(commands.Cog):
         # Calculate race time based on the individual stats
         # Horses with higher individual stats will have a lower race time
         return 480 - ((speed * 4) + (stamina * 3)  + (strength * 2))
+    
+    @horse_race.error
+    async def horse_race_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            retry_after = error.retry_after
+            embed = discord.Embed(
+                title="Cooldown",
+                description=f"You can only initiate a horse race once every 30 minutes. Try again in {int(retry_after):,} seconds.",
+                color=discord.Colour.red(),
+            )
+            await ctx.respond(embed=embed)
     
 def setup(bot):
     bot.add_cog(Horses(bot))
