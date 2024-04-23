@@ -37,6 +37,26 @@ c.execute('''CREATE TABLE IF NOT EXISTS horses (
 )''')
 conn.commit()
 
+c.execute('''CREATE TABLE IF NOT EXISTS stocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id INTEGER,
+    name TEXT,
+    price INTEGER,
+    quantity INTEGER
+)''')
+conn.commit()
+
+c.execute('''CREATE TABLE IF NOT EXISTS user_stocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    stock_id INTEGER,
+    quantity INTEGER,
+    price INTEGER,
+    FOREIGN KEY (user_id) REFERENCES currency(user_id),
+    FOREIGN KEY (stock_id) REFERENCES stocks(id)
+)''')
+conn.commit()
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
@@ -64,6 +84,14 @@ async def on_guild_join(guild):
             strength = random.randint(1, 5)   # Random strength between 1 and 5
             c.execute('INSERT INTO horses (guild_id, name, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?, ?)', (guild_id, name, price, speed, stamina, strength))
             conn.commit()
+        
+        stock_name = ['Techtronics Inc.','BioGenetics Corporation','Energy Dynamics Ltd.','Quantum Innovations','Global Solutions Inc.','Future Horizons','Innovative Technologies','Nanotech Systems','Cybernetics Corporation','Digital Evolution']
+        for i in range(1, 40 + 1):
+            name = random.choice(stock_name) + str(i)
+            price = random.randint(10, 1000)
+            quantity = random.randint(1000, 10000)
+            c.execute('INSERT INTO stocks (guild_id, name, price, quantity) VALUES (?, ?, ?, ?)', (guild_id, name, price, quantity))
+            conn.commit()
 
 @bot.event
 async def on_member_join(member):
@@ -88,4 +116,5 @@ bot.load_extension('cogs.Horses')
 bot.load_extension('cogs.Games')
 bot.load_extension('cogs.DailyReward')
 bot.load_extension('cogs.money')
+bot.load_extension('cogs.stocks')
 bot.run(os.getenv('TOKEN'))
