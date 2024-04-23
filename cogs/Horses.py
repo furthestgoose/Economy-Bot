@@ -21,7 +21,7 @@ class Horses(commands.Cog):
             horse = self.c.fetchone()
 
             if horse:
-                horse_id, name, owner_id, price, speed, stamina, strength, horse_guild_id = horse
+                horse_id,horse_guild_id, name, owner_id, price, speed, stamina, strength = horse
                     # Check if the horse is not already owned
                 if owner_id is None:
                     # Check if the user already owns a horse in the guild
@@ -76,7 +76,7 @@ class Horses(commands.Cog):
                 # Format the information about each horse
                 horse_info = []
                 for horse in horses:
-                    horse_id, name, owner_id, price, speed, stamina, strength, horse_guild_id = horse
+                    horse_id,horse_guild_id, name, owner_id, price, speed, stamina, strength = horse
                     horse_info.append(f"Name: {name}, Price: {price:,}, Speed: {speed}, Stamina: {stamina}, Strength: {strength}")
 
                 # Send the formatted list of horses as a message
