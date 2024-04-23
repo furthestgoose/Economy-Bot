@@ -4,6 +4,7 @@ import sqlite3
 from dotenv import load_dotenv
 import os
 import random
+import string
 
 load_dotenv()
 
@@ -75,22 +76,30 @@ async def on_guild_join(guild):
         conn.commit()
         
         # Insert randomly generated horses into the database for each member
-        horse_names = ['Shadow', 'Thunder', 'Blaze', 'Spirit', 'Storm', 'Mystic', 'Midnight', 'Raven', 'Whisper', 'Spirit']
+       # Lists of naming components
+        prefixes = ['Silver', 'Midnight', 'Crimson', 'Ebony', 'Misty', 'Twilight', 'Ember', 'Thunder']
+        suffixes = ['Mane', 'Blaze', 'Wind', 'Spirit', 'Whisper', 'Dancer', 'Stride', 'Stride']
+        adjectives = ['Wild', 'Majestic', 'Fierce', 'Graceful', 'Brave', 'Noble', 'Regal', 'Valiant']
+
         for i in range(1, 3 + 1):
-            name = random.choice(horse_names) + str(i)
-            price = random.randint(100000, 500000)  # Random price between 1000 and 10000 coins
-            speed = random.randint(1, 5)      # Random speed between 1 and 5
-            stamina = random.randint(1, 5)    # Random stamina between 1 and 5
-            strength = random.randint(1, 5)   # Random strength between 1 and 5
+            prefix = random.choice(prefixes)
+            suffix = random.choice(suffixes)
+            adjective = random.choice(adjectives)
+            name = f"{prefix} {adjective} {suffix}"
+            price = random.randint(100000, 500000)
+            speed = random.randint(1, 5)
+            stamina = random.randint(1, 5)
+            strength = random.randint(1, 5)
             c.execute('INSERT INTO horses (guild_id, name, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?, ?)', (guild_id, name, price, speed, stamina, strength))
             conn.commit()
         
-        stock_name = ['Techtronics Inc.','BioGenetics Corporation','Energy Dynamics Ltd.','Quantum Innovations','Global Solutions Inc.','Future Horizons','Innovative Technologies','Nanotech Systems','Cybernetics Corporation','Digital Evolution']
+        characters = string.ascii_uppercase + string.digits
+
         for i in range(1, 40 + 1):
-            name = random.choice(stock_name) + str(i)
+            ticker = ''.join(random.choices(characters, k=random.randint(3, 5)))
             price = random.randint(10, 1000)
             quantity = random.randint(1000, 10000)
-            c.execute('INSERT INTO stocks (guild_id, name, price, quantity) VALUES (?, ?, ?, ?)', (guild_id, name, price, quantity))
+            c.execute('INSERT INTO stocks (guild_id, name, price, quantity) VALUES (?, ?, ?, ?)', (guild_id, ticker, price, quantity))
             conn.commit()
 
 @bot.event
@@ -101,14 +110,19 @@ async def on_member_join(member):
     c.execute('INSERT OR IGNORE INTO currency (guild_id, user_id, balance) VALUES (?, ?, ?)', (guild_id, user_id, 1000))
     conn.commit()
     
-    # Insert randomly generated horses into the database for the member
-    horse_names = ['Shadow', 'Thunder', 'Blaze', 'Spirit', 'Storm', 'Mystic', 'Midnight', 'Raven', 'Whisper', 'Spirit']
+    prefixes = ['Silver', 'Midnight', 'Crimson', 'Ebony', 'Misty', 'Twilight', 'Ember', 'Thunder']
+    suffixes = ['Mane', 'Blaze', 'Wind', 'Spirit', 'Whisper', 'Dancer', 'Stride', 'Stride']
+    adjectives = ['Wild', 'Majestic', 'Fierce', 'Graceful', 'Brave', 'Noble', 'Regal', 'Valiant']
+
     for i in range(1, 3 + 1):
-        name = random.choice(horse_names) + str(i)
-        price = random.randint(100000, 500000)  # Random price between 1000 and 10000 coins
-        speed = random.randint(1, 5)      # Random speed between 1 and 5
-        stamina = random.randint(1, 5)    # Random stamina between 1 and 5
-        strength = random.randint(1, 5)   # Random strength between 1 and 5
+        prefix = random.choice(prefixes)
+        suffix = random.choice(suffixes)
+        adjective = random.choice(adjectives)
+        name = f"{prefix} {adjective} {suffix}"
+        price = random.randint(100000, 500000)
+        speed = random.randint(1, 5)
+        stamina = random.randint(1, 5)
+        strength = random.randint(1, 5)
         c.execute('INSERT INTO horses (guild_id, name, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?, ?)', (guild_id, name, price, speed, stamina, strength))
         conn.commit()
 
