@@ -138,7 +138,7 @@ class Stocks(commands.Cog):
                 total_change += change * total_quantity
                 # Calculate the percentage change in price
                 if purchase_price != 0:
-                    change_percentage = ((current_price - purchase_price) / purchase_price) * 100
+                    change_percentage = (change / purchase_price) * 100
                 else:
                     change_percentage = 0
                 stock_info.append(f"Name: {name}, Quantity: {total_quantity}, Current Price: {current_price}, Change (%): {change_percentage:.2f}%")
