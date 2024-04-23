@@ -98,7 +98,7 @@ class Stocks(commands.Cog):
                     total_price = price * quantity
                     self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ? AND guild_id = ?', (total_price, user_id, guild_id))
                     # Add the purchased stocks to the user's portfolio
-                    self.c.execute('INSERT INTO user_stocks (user_id, stock_id, quantity,price) VALUES (?, ?, ?,?)', (user_id, stock_id, quantity,total_price))
+                    self.c.execute('INSERT INTO user_stocks (user_id, stock_id, quantity,price) VALUES (?, ?, ?,?)', (user_id, stock_id, quantity,price))
                     # Update the available quantity of the stock
                     new_quantity = available_quantity - quantity
                     self.c.execute('UPDATE stocks SET quantity = ? WHERE id = ?', (new_quantity, stock_id))
@@ -119,29 +119,37 @@ class Stocks(commands.Cog):
     @discord.slash_command(name="view_stocks_info", description="View information about the stocks you own")
     async def view_stocks_info(self, ctx):
         user_id = ctx.author.id
-        guild_id = ctx.guild.id 
+        guild_id = ctx.guild.id
 
         # Retrieve the stocks owned by the user from the database
-        self.c.execute('SELECT s.name, SUM(us.quantity), us.price FROM user_stocks AS us INNER JOIN stocks AS s ON us.stock_id = s.id WHERE us.user_id = ? AND s.guild_id = ? GROUP BY s.name', (user_id, guild_id))
+        self.c.execute('SELECT s.name, SUM(us.quantity), us.price FROM user_stocks AS us INNER JOIN stocks AS s ON us.stock_id = s.id WHERE us.user_id = ? AND s.guild_id = ? GROUP BY s.name, us.price', (user_id, guild_id))
         user_stocks = self.c.fetchall()
 
         if user_stocks:
             stock_info = []
             total_change = 0
+            total_value = 0
             for stock in user_stocks:
-                name, total_quantity, purchase_price = stock
+                name, quantity, purchase_price = stock
+
                 # Retrieve the current price of the stock
                 self.c.execute('SELECT price FROM stocks WHERE name = ? AND guild_id = ?', (name, guild_id))
                 current_price = self.c.fetchone()[0]
+
                 # Calculate the change in price
-                change = current_price - purchase_price
-                total_change += change * total_quantity
+                change = (current_price - purchase_price) * quantity
+
                 # Calculate the percentage change in price
-                if purchase_price != 0:
-                    change_percentage = (change / purchase_price) * 100
-                else:
+                if change == 0:
                     change_percentage = 0
-                stock_info.append(f"Name: {name}, Quantity: {total_quantity}, Current Price: {current_price}, Change (%): {change_percentage:.2f}%")
+                elif purchase_price == 0:
+                    change_percentage = 0
+                else:
+                    change_percentage = (change / (purchase_price * quantity)) * 100
+
+                stock_info.append(f"Name: {name}, Quantity: {quantity}, Current Price: {current_price}, Change (%): {change_percentage:.2f}%")
+                total_change += change
+                total_value += current_price * quantity
 
             # Send the formatted list of stocks along with the total change
             embed = discord.Embed(
@@ -150,6 +158,7 @@ class Stocks(commands.Cog):
                 color=discord.Colour.dark_blue(),
             )
             embed.add_field(name="Total Change", value=f"{total_change}")
+            embed.add_field(name="Total Value", value=f"{total_value}")
             await ctx.respond(embed=embed)
         else:
             embed = discord.Embed(
