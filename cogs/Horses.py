@@ -12,47 +12,48 @@ class Horses(commands.Cog):
     @discord.slash_command(name="buy-horse", description="View available horses and purchase one")
     async def buy_horse(self, ctx, horse_name: str = None):
         user_id = ctx.author.id
+        guild_id = ctx.guild.id  # Get the guild ID
 
         # If a horse name is provided, attempt to purchase that horse
         if horse_name is not None:
-            # Retrieve the horse details from the database based on the provided horse name
-            self.c.execute('SELECT * FROM horses WHERE name = ? AND owner_id IS NULL', (horse_name,))
+            # Retrieve the horse details from the database based on the provided horse name and guild
+            self.c.execute('SELECT * FROM horses WHERE name = ? AND owner_id IS NULL AND guild_id = ?', (horse_name, guild_id))
             horse = self.c.fetchone()
-    
+
             if horse:
-                horse_id, name, owner_id, price, speed, stamina, strength = horse
-                # Check if the horse is not already owned
+                horse_id, name, owner_id, price, speed, stamina, strength, horse_guild_id = horse
+                    # Check if the horse is not already owned
                 if owner_id is None:
-                    # Check if the user already owns a horse
-                    self.c.execute('SELECT owner_id FROM horses WHERE owner_id = ?', (user_id,))
+                    # Check if the user already owns a horse in the guild
+                    self.c.execute('SELECT owner_id FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
                     existing_horse = self.c.fetchone()
                     if existing_horse:
                         embed = discord.Embed(
-                            title= "Error",
-                            description="You already own a horse.",
+                            title="Error",
+                            description="You already own a horse in this guild.",
                             color=discord.Colour.red(),
                         )
                         await ctx.respond(embed=embed)
                         return
-                
+
                     # Check if the user has enough coins to purchase the horse
-                    self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+                    self.c.execute('SELECT balance FROM currency WHERE user_id = ? AND guild_id = ?', (user_id, guild_id))
                     row = self.c.fetchone()
                     if row and row[0] >= price:
                         # Deduct the price from the user's balance
-                        self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (price, user_id))
+                        self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ? AND guild_id = ?', (price, user_id, guild_id))
                         # Set the horse's owner to the user
                         self.c.execute('UPDATE horses SET owner_id = ? WHERE id = ?', (user_id, horse_id))
                         self.conn.commit()
                         embed = discord.Embed(
-                            title= "Horse Purchase",
+                            title="Horse Purchase",
                             description=f"You've successfully purchased {name} for {price:,} coins!",
                             color=discord.Colour.green(),
                         )
                         await ctx.respond(embed=embed)
                     else:
                         embed = discord.Embed(
-                            title= "Error",
+                            title="Error",
                             description="You don't have enough coins to purchase this horse.",
                             color=discord.Colour.red(),
                         )
@@ -61,61 +62,63 @@ class Horses(commands.Cog):
                     await ctx.respond("This horse has already been purchased.")
             else:
                 embed = discord.Embed(
-                            title= "Error",
-                            description="Invalid horse name.",
-                            color=discord.Colour.red(),
-                        )
+                    title="Error",
+                    description="Invalid horse name.",
+                    color=discord.Colour.red(),
+                )
                 await ctx.respond(embed=embed)
         else:
-            # Retrieve 3 random unowned horses from the database
-            self.c.execute('SELECT * FROM horses WHERE owner_id IS NULL ORDER BY RANDOM() LIMIT 3')
+            # Retrieve 3 random unowned horses from the database for the guild
+            self.c.execute('SELECT * FROM horses WHERE owner_id IS NULL AND guild_id = ? ORDER BY RANDOM() LIMIT 3', (guild_id,))
             horses = self.c.fetchall()
 
             if horses:
                 # Format the information about each horse
                 horse_info = []
                 for horse in horses:
-                    horse_id,name, owner_id, price, speed, stamina, strength = horse
+                    horse_id, name, owner_id, price, speed, stamina, strength, horse_guild_id = horse
                     horse_info.append(f"Name: {name}, Price: {price:,}, Speed: {speed}, Stamina: {stamina}, Strength: {strength}")
 
                 # Send the formatted list of horses as a message
                 embed = discord.Embed(
-                            title= "Horse List",
-                            description="\n".join(horse_info),
-                            color=discord.Colour.dark_gold(),
-                        )
+                    title="Horse List",
+                    description="\n".join(horse_info),
+                    color=discord.Colour.dark_gold(),
+                )
                 await ctx.respond(embed=embed)
             else:
                 embed = discord.Embed(
-                            title= "Error",
-                            description="No unowned horses found in database",
-                            color=discord.Colour.red(),
-                        )
+                    title="Error",
+                    description="No unowned horses found in the guild's database.",
+                    color=discord.Colour.red(),
+                )
                 await ctx.respond(embed=embed)
+
 
     @discord.slash_command(name="release-horse", description="Release ownership of your horse")
     async def release_horse(self, ctx):
         user_id = ctx.author.id
+        guild_id = ctx.guild.id  # Get the guild ID
 
-        # Check if the user owns a horse
-        self.c.execute('SELECT * FROM horses WHERE owner_id = ?', (user_id,))
+        # Check if the user owns a horse in the guild
+        self.c.execute('SELECT * FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
         horse = self.c.fetchone()
 
         if horse:
             # Release ownership of the horse
-            horse_id, name, owner_id, price, speed, stamina, strength = horse
-            self.c.execute('UPDATE horses SET owner_id = NULL WHERE owner_id = ?', (user_id,))
+            horse_id, name, owner_id, price, speed, stamina, strength, horse_guild_id = horse
+            self.c.execute('UPDATE horses SET owner_id = NULL WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
             self.conn.commit()
             embed = discord.Embed(
-                            title= "Horse Released",
+                            title="Horse Released",
                             description=f"You have released ownership of {name}.",
                             color=discord.Colour.green(),
                         )
             await ctx.respond(embed=embed)
         else:
             embed = discord.Embed(
-                            title= "Error",
-                            description="You don't own any horse.",
+                            title="Error",
+                            description="You don't own any horse in this guild.",
                             color=discord.Colour.red(),
                         )
             await ctx.respond(embed=embed)
@@ -137,12 +140,13 @@ class Horses(commands.Cog):
         else:
             return 20000 + (current_stamina * 30000)
 
-    @discord.slash_command(name="improve-horse-speed", description="pay to increase your horse speed")
+    @discord.slash_command(name="improve-horse-speed", description="Pay to increase your horse speed")
     async def improve_speed(self, ctx):
         user_id = ctx.author.id
-    
-        # Retrieve the user's horse details from the database
-        self.c.execute('SELECT speed FROM horses WHERE owner_id = ?', (user_id,))
+        guild_id = ctx.guild.id  # Get the guild ID
+
+        # Retrieve the user's horse details from the database for the specific guild
+        self.c.execute('SELECT speed FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
         horse = self.c.fetchone()
 
         if horse:
@@ -151,7 +155,7 @@ class Horses(commands.Cog):
             # Check if the current speed is already at the maximum level
             if current_speed >= 10:
                 embed = discord.Embed(
-                            title= "Error",
+                            title="Error",
                             description="Your horse's speed is already at the maximum level.",
                             color=discord.Colour.red(),
                         )
@@ -170,45 +174,47 @@ class Horses(commands.Cog):
             
                 # Increase the horse's speed by 1, but limit it to 10
                 new_speed = min(current_speed + 1, 10)
-                self.c.execute('UPDATE horses SET speed = ? WHERE owner_id = ?', (new_speed, user_id))
+                self.c.execute('UPDATE horses SET speed = ? WHERE owner_id = ? AND guild_id = ?', (new_speed, user_id, guild_id))
             
                 self.conn.commit()
                 embed = discord.Embed(
-                            title= "Speed Increased",
+                            title="Speed Increased",
                             description=f"Speed increased! Your horse's speed is now {new_speed}.",
                             color=discord.Colour.green(),
                         )
                 await ctx.respond(embed=embed)
             else:
                 embed = discord.Embed(
-                            title= "Error",
+                            title="Error",
                             description="You don't have enough funds to improve your horse's speed.",
-                            color=discord.Colour.red(),
+                           color=discord.Colour.red(),
                         )
                 await ctx.respond(embed=embed)
         else:
             embed = discord.Embed(
-                            title= "Error",
-                            description="You don't own a horse.",
+                            title="Error",
+                            description="You don't own a horse in this guild.",
                             color=discord.Colour.red(),
                         )
             await ctx.respond(embed=embed)
+
     
-    @discord.slash_command(name="improve-horse-strength", description="pay to increase your horse strength")
-    async def improve_strength(self,ctx):
+    @discord.slash_command(name="improve-horse-strength", description="Pay to increase your horse strength")
+    async def improve_strength(self, ctx):
         user_id = ctx.author.id
-    
-        # Retrieve the user's horse details from the database
-        self.c.execute('SELECT strength FROM horses WHERE owner_id = ?', (user_id,))
+        guild_id = ctx.guild.id  # Get the guild ID
+
+        # Retrieve the user's horse details from the database for the specific guild
+        self.c.execute('SELECT strength FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
         horse = self.c.fetchone()
 
         if horse:
-            current_strength = horse[0]  # Extract the current speed from the tuple
+            current_strength = horse[0]  # Extract the current strength from the tuple
         
-            # Check if the current speed is already at the maximum level
+            # Check if the current strength is already at the maximum level
             if current_strength >= 10:
                 embed = discord.Embed(
-                            title= "Error",
+                            title="Error",
                             description="Your horse's strength is already at the maximum level.",
                             color=discord.Colour.red(),
                         )
@@ -225,47 +231,48 @@ class Horses(commands.Cog):
                 # Deduct the upgrade cost from the user's balance
                 self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (upgrade_cost, user_id))
             
-                # Increase the horse's speed by 1, but limit it to 10
+                # Increase the horse's strength by 1, but limit it to 10
                 new_strength = min(current_strength + 1, 10)
-                self.c.execute('UPDATE horses SET strength = ? WHERE owner_id = ?', (new_strength, user_id))
+                self.c.execute('UPDATE horses SET strength = ? WHERE owner_id = ? AND guild_id = ?', (new_strength, user_id, guild_id))
             
                 self.conn.commit()
                 embed = discord.Embed(
-                            title= "Strength Increased",
-                            description=f"Strength increased! Your horse's speed is now {new_strength}.",
+                            title="Strength Increased",
+                            description=f"Strength increased! Your horse's strength is now {new_strength}.",
                             color=discord.Colour.green(),
                         )
                 await ctx.respond(embed=embed)
             else:
                 embed = discord.Embed(
-                            title= "Error",
+                            title="Error",
                             description="You don't have enough funds to improve your horse's strength.",
                             color=discord.Colour.red(),
                         )
                 await ctx.respond(embed=embed)
         else:
             embed = discord.Embed(
-                            title= "Error",
-                            description="You don't own a horse.",
+                            title="Error",
+                            description="You don't own a horse in this guild.",
                             color=discord.Colour.red(),
                         )
             await ctx.respond(embed=embed)
-    
-    @discord.slash_command(name="improve-horse-stamina", description="pay to increase your horse stamina")
-    async def improve_stamina(self,ctx):
+
+    @discord.slash_command(name="improve-horse-stamina", description="Pay to increase your horse stamina")
+    async def improve_stamina(self, ctx):
         user_id = ctx.author.id
-    
-        # Retrieve the user's horse details from the database
-        self.c.execute('SELECT stamina FROM horses WHERE owner_id = ?', (user_id,))
+        guild_id = ctx.guild.id  # Get the guild ID
+
+        # Retrieve the user's horse details from the database for the specific guild
+        self.c.execute('SELECT stamina FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
         horse = self.c.fetchone()
 
         if horse:
-            current_stamina = horse[0]  # Extract the current speed from the tuple
+            current_stamina = horse[0]  # Extract the current stamina from the tuple
         
-            # Check if the current speed is already at the maximum level
+            # Check if the current stamina is already at the maximum level
             if current_stamina >= 10:
                 embed = discord.Embed(
-                            title= "Error",
+                            title="Error",
                             description="Your horse's stamina is already at the maximum level.",
                             color=discord.Colour.red(),
                         )
@@ -282,37 +289,39 @@ class Horses(commands.Cog):
                 # Deduct the upgrade cost from the user's balance
                 self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (upgrade_cost, user_id))
             
-                # Increase the horse's speed by 1, but limit it to 10
+                # Increase the horse's stamina by 1, but limit it to 10
                 new_stamina = min(current_stamina + 1, 10)
-                self.c.execute('UPDATE horses SET stamina = ? WHERE owner_id = ?', (new_stamina, user_id))
+                self.c.execute('UPDATE horses SET stamina = ? WHERE owner_id = ? AND guild_id = ?', (new_stamina, user_id, guild_id))
             
                 self.conn.commit()
                 embed = discord.Embed(
-                            title= "Stamina Increased",
-                            description=f"Stamina increased! Your horse's speed is now {new_stamina}.",
+                            title="Stamina Increased",
+                            description=f"Stamina increased! Your horse's stamina is now {new_stamina}.",
                             color=discord.Colour.green(),
                         )
                 await ctx.respond(embed=embed)
             else:
                 embed = discord.Embed(
-                            title= "Error",
+                            title="Error",
                             description="You don't have enough funds to improve your horse's stamina.",
                             color=discord.Colour.red(),
                         )
                 await ctx.respond(embed=embed)
         else:
             embed = discord.Embed(
-                            title= "Error",
-                            description="You don't own a horse.",
+                            title="Error",
+                            description="You don't own a horse in this guild.",
                             color=discord.Colour.red(),
                         )
             await ctx.respond(embed=embed)
+
     @discord.slash_command(name="view-horse-upgrade-costs", description="View the upgrade costs for your horse")
     async def view_costs(self, ctx):
         user_id = ctx.author.id
+        guild_id = ctx.guild.id  # Get the guild ID
 
-        # Retrieve the user's horse details from the database
-        self.c.execute('SELECT speed, stamina, strength FROM horses WHERE owner_id = ?', (user_id,))
+        # Retrieve the user's horse details from the database for the specific guild
+        self.c.execute('SELECT speed, stamina, strength FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
         horse = self.c.fetchone()
 
         if horse:
@@ -342,17 +351,19 @@ class Horses(commands.Cog):
         else:
             embed = discord.Embed(
                             title= "Error",
-                            description="You don't own a horse.",
+                            description="You don't own a horse in this guild.",
                             color=discord.Colour.red(),
                         )
             await ctx.respond(embed=embed)
 
+
     @discord.slash_command(name="view-horse-information", description="View information about your horse")
     async def view_info(self, ctx):
         user_id = ctx.author.id
+        guild_id = ctx.guild.id  # Get the guild ID
 
-        # Retrieve the user's horse details from the database
-        self.c.execute('SELECT name, speed, stamina, strength FROM horses WHERE owner_id = ?', (user_id,))
+        # Retrieve the user's horse details from the database for the specific guild
+        self.c.execute('SELECT name, speed, stamina, strength FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
         horse = self.c.fetchone()
 
         if horse:
@@ -373,7 +384,7 @@ class Horses(commands.Cog):
         else:
             embed = discord.Embed(
                             title= "Error",
-                            description="You don't own a horse.",
+                            description="You don't own a horse in this guild.",
                             color=discord.Colour.red(),
                         )
             await ctx.respond(embed=embed)
@@ -382,21 +393,22 @@ class Horses(commands.Cog):
     @commands.cooldown(1, 1800, commands.BucketType.user)  # 1800 seconds = 30 minutes
     async def horse_race(self, ctx, bet: int):
         user_id = ctx.author.id
+        guild_id = ctx.guild.id  # Get the guild ID
 
-        # Retrieve the user's horse
-        self.c.execute('SELECT * FROM horses WHERE owner_id = ?', (user_id,))
+        # Retrieve the user's horse for the specific guild
+        self.c.execute('SELECT * FROM horses WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
         user_horse = self.c.fetchone()
         if not user_horse:
             embed = discord.Embed(
                             title= "Error",
-                            description="You don't own a horse to race.",
+                            description="You don't own a horse to race in this guild.",
                             color=discord.Colour.red(),
                         )
             await ctx.respond(embed=embed)
             return
 
-        # Retrieve a certain number of random horses from the database
-        self.c.execute('SELECT * FROM horses WHERE id != ? ORDER BY RANDOM() LIMIT 3', (user_horse[0],))
+        # Retrieve a certain number of random horses from the database within the specific guild
+        self.c.execute('SELECT * FROM horses WHERE id != ? AND guild_id = ? ORDER BY RANDOM() LIMIT 3', (user_horse[0], guild_id))
         horses = self.c.fetchall()
 
         # Include the user's horse in the race

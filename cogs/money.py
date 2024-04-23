@@ -17,7 +17,8 @@ class money(commands.Cog):
                 await ctx.respond("You cannot give to a bot!")
                 return
             user_id = target_user.id
-            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (amount, user_id))
+            guild_id = ctx.guild.id
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (amount, guild_id, user_id))
             self.conn.commit()
             await ctx.respond(f"You've added {amount:,} coins to {target_user.display_name}'s balance.")
             guild_name = ctx.guild.name
@@ -31,17 +32,23 @@ class money(commands.Cog):
             if target_user.bot:
                 await ctx.respond("You cannot take from a bot!")
                 return
+            guild_id = ctx.guild.id
             user_id = target_user.id
-            self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+            self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
             row = self.c.fetchone()
             if row is None:
-                await ctx.respond("The target user doesn't have a balance yet.")
+                await ctx.respond("The target user doesn't have a balance yet in this guild.")
             elif row[0] < amount:
-                await ctx.respond("The target user doesn't have enough coins.")
+                await ctx.respond("The target user doesn't have enough coins in this guild.")
             else:
-                self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (amount, user_id))
+                self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (amount, guild_id, user_id))
                 self.conn.commit()
-                await ctx.respond(f"You've removed {amount:,} coins from {target_user.display_name}'s balance.")
+                embed = discord.Embed(
+                    title="Coins Removed",
+                    description=f"You've removed {amount:,} coins from {target_user.display_name}'s balance.",
+                    color=discord.Colour.red(),
+                )
+                await ctx.respond(embed=embed)
                 guild_name = ctx.guild.name
                 await target_user.send(f"{ctx.author.display_name} removed {amount:,} coins from your balance in {guild_name}!")
         else:
@@ -49,7 +56,7 @@ class money(commands.Cog):
     @discord.slash_command(name="steal", description="Attempt to steal coins from another user")
     @commands.cooldown(1, 300, commands.BucketType.user)  # 1800 seconds = 30 minutes
     async def steal(self,ctx, target_user: discord.Member):
-    # Check if the target user is the same as the user invoking the command
+        # Check if the target user is the same as the user invoking the command
         if target_user == ctx.author:
             await ctx.respond("You cannot steal from yourself!")
             return
@@ -59,14 +66,15 @@ class money(commands.Cog):
             await ctx.respond("You cannot steal from a bot!")
             return
 
-        # Get the user IDs
+        # Get the user IDs and the guild ID
         user_id = ctx.author.id
         target_user_id = target_user.id
+        guild_id = ctx.guild.id
 
         # Check if the target user has any coins
-        self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (target_user_id,))
-        target_user_balance = self.c.fetchone()[0]
-        if target_user_balance <= 0:
+        self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, target_user_id,))
+        row = self.c.fetchone()
+        if row is None or row[0] <= 0:
             await ctx.respond("The target user does not have any coins to steal!")
             return
 
@@ -76,9 +84,9 @@ class money(commands.Cog):
         # Determine if the steal attempt is successful
         if random.random() < success_rate:
             # Successful steal
-            stolen_amount = random.randint(1, min(5000, target_user_balance))  # Random amount up to the target's balance or 100
-            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (stolen_amount, user_id))
-            self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (stolen_amount, target_user_id))
+            stolen_amount = random.randint(1, min(5000, row[0]))  # Random amount up to the target's balance or 100
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (stolen_amount, guild_id, user_id))
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (stolen_amount, guild_id, target_user_id))
             self.conn.commit()
             embed = discord.Embed(
                 title= "Steal Result",
@@ -100,33 +108,34 @@ class money(commands.Cog):
             await ctx.respond(embed=embed)
             
     @discord.slash_command(name="transfer", description="Transfer coins to another user")
-    async def transfer(self,ctx, target_user: discord.Member, amount: int):
+    async def transfer(self, ctx, target_user: discord.Member, amount: int):
         # Check if the target user is the same as the user invoking the command
         if target_user == ctx.author:
             await ctx.respond("You cannot transfer coins to yourself!")
             return
-    
+
         # Check if the target user is a bot
         if target_user.bot:
             await ctx.respond("You cannot transfer coins to a bot!")
             return
-    
+
         # Get the user IDs
         user_id = ctx.author.id
         target_user_id = target_user.id
-    
+        guild_id = ctx.guild.id  # Retrieve guild ID
+
         # Check if the user has enough coins to transfer
-        self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+        self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id,))
         user_balance = self.c.fetchone()[0]
         if user_balance < amount:
             await ctx.respond("You do not have enough coins to transfer.")
             return
-    
+
         # Transfer the coins
-        self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (amount, user_id))
-        self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (amount, target_user_id))
+        self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (amount, guild_id, user_id,))
+        self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (amount, guild_id, target_user_id,))
         self.conn.commit()
-    
+
         # Notify both users
         guild_name = ctx.guild.name
         embed = discord.Embed(
@@ -136,11 +145,12 @@ class money(commands.Cog):
             )
         await ctx.respond(embed=embed)
         await target_user.send(f"{ctx.author.display_name} has transferred {amount:,} coins to you in {guild_name}!")
-        
+
     @discord.slash_command(name = "balance" ,description = "view your balance")
     async def balance(self,ctx):
         user_id = ctx.author.id
-        self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+        guild_id = ctx.guild.id
+        self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id,))
         row = self.c.fetchone()
         if row is None:
             await ctx.respond("You don't have a balance yet. Use `!register` to create an account.")
@@ -155,7 +165,8 @@ class money(commands.Cog):
             
     @discord.slash_command(name="leaderboard" ,description = "View the leaderboard")
     async def leaderboard(self,ctx):
-        self.c.execute('SELECT user_id, balance FROM currency ORDER BY balance DESC LIMIT 5')
+        guild_id = ctx.guild.id
+        self.c.execute('SELECT user_id, balance FROM currency WHERE guild_id = ? ORDER BY balance DESC LIMIT 10', (guild_id,))
         rows = self.c.fetchall()
         leaderboard = []
         for idx, row in enumerate(rows, 1):
@@ -176,12 +187,13 @@ class money(commands.Cog):
             return
         else:
             user_id = target_user.id
-            self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+            guild_id = ctx.guild.id  # Retrieve guild ID
+            self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id,))
             row = self.c.fetchone()
             if row is None:
                 embed = discord.Embed(title="User Balance",
-                                     description="This user doesn't have a balance yet.",
-                                     color=discord.Colour.yellow(),)
+                                  description="This user doesn't have a balance yet.",
+                                  color=discord.Colour.yellow(),)
             else:
                 balance = row[0]
                 embed = discord.Embed(title="User Balance", description=f"{target_user.display_name}'s balance is {balance:,} coins.", color=discord.Colour.yellow(),)

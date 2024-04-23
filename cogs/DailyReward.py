@@ -14,6 +14,7 @@ class DailyReward(commands.Cog):
     @discord.slash_command(name="daily", description="Get 1,000 coins a day")
     async def daily(self, ctx):  # Add the context parameter
         user_id = ctx.author.id
+        guild_id = ctx.guild.id
         # Check if the user has claimed the daily reward today
         if user_id in DailyReward.last_daily_reward:
             last_claimed = DailyReward.last_daily_reward[user_id]
@@ -22,7 +23,7 @@ class DailyReward(commands.Cog):
                 return
 
         # Give the user the daily reward
-        self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (1000, user_id))
+        self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (1000, guild_id, user_id))
         self.conn.commit()
         await ctx.respond("You have claimed your daily reward of 1,000 coins!")
 

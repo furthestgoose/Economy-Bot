@@ -18,13 +18,16 @@ c = conn.cursor()
 
 # Create table if not exists
 c.execute('''CREATE TABLE IF NOT EXISTS currency (
-             user_id INTEGER PRIMARY KEY,
-             balance INTEGER DEFAULT 0
+             guild_id INTEGER,
+             user_id INTEGER,
+             balance INTEGER DEFAULT 0,
+             PRIMARY KEY (guild_id, user_id)
              )''')
 conn.commit()
 
 c.execute('''CREATE TABLE IF NOT EXISTS horses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id INTEGER,
     name TEXT,
     owner_id INTEGER,
     price INTEGER,
@@ -47,32 +50,38 @@ async def on_guild_join(guild):
         
         # Add the member to the database if not already present
         user_id = member.id
-        c.execute('INSERT OR IGNORE INTO currency (user_id, balance) VALUES (?, ?)', (user_id, 1000))
+        guild_id = guild.id
+        c.execute('INSERT OR IGNORE INTO currency (guild_id, user_id, balance) VALUES (?, ?, ?)', (guild_id, user_id, 1000))
         conn.commit()
+        
+        # Insert randomly generated horses into the database for each member
         horse_names = ['Shadow', 'Thunder', 'Blaze', 'Spirit', 'Storm', 'Mystic', 'Midnight', 'Raven', 'Whisper', 'Spirit']
-        # Insert randomly generated horses into the database
         for i in range(1, 3 + 1):
             name = random.choice(horse_names) + str(i)
-            price = random.randint(100000, 500000)  # Random price between 100 and 1000 coins
-            speed = random.randint(1, 10)      # Random speed between 1 and 10
-            stamina = random.randint(1, 10)    # Random stamina between 1 and 10
-            strength = random.randint(1, 10)   # Random strength between 1 and 10
-            c.execute('INSERT INTO horses (name, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?)', (name, price, speed, stamina, strength))
+            price = random.randint(1000, 10000)  # Random price between 1000 and 10000 coins
+            speed = random.randint(1, 5)      # Random speed between 1 and 5
+            stamina = random.randint(1, 5)    # Random stamina between 1 and 5
+            strength = random.randint(1, 5)   # Random strength between 1 and 5
+            c.execute('INSERT INTO horses (guild_id, name, owner_id, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?, ?, ?)', (guild_id, name, user_id, price, speed, stamina, strength))
             conn.commit()
+
 @bot.event
 async def on_member_join(member):
+    # Add the member to the database if not already present
     user_id = member.id
-    c.execute('INSERT OR IGNORE INTO currency (user_id, balance) VALUES (?, ?)', (user_id, 1000))
+    guild_id = member.guild.id  # Get the guild ID
+    c.execute('INSERT OR IGNORE INTO currency (guild_id, user_id, balance) VALUES (?, ?, ?)', (guild_id, user_id, 1000))
     conn.commit()
+    
+    # Insert randomly generated horses into the database for the member
     horse_names = ['Shadow', 'Thunder', 'Blaze', 'Spirit', 'Storm', 'Mystic', 'Midnight', 'Raven', 'Whisper', 'Spirit']
-        # Insert randomly generated horses into the database
-    for i in range(1, 3 + 1):
+    for i in range(1, 998 + 1):
         name = random.choice(horse_names) + str(i)
-        price = random.randint(1000, 10000)  # Random price between 100 and 1000 coins
-        speed = random.randint(1, 5)      # Random speed between 1 and 10
-        stamina = random.randint(1, 5)    # Random stamina between 1 and 10
-        strength = random.randint(1, 5)   # Random strength between 1 and 10
-        c.execute('INSERT INTO horses (name, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?)', (name, price, speed, stamina, strength))
+        price = random.randint(1000, 10000)  # Random price between 1000 and 10000 coins
+        speed = random.randint(1, 5)      # Random speed between 1 and 5
+        stamina = random.randint(1, 5)    # Random stamina between 1 and 5
+        strength = random.randint(1, 5)   # Random strength between 1 and 5
+        c.execute('INSERT INTO horses (guild_id, name, owner_id, price, speed, stamina, strength) VALUES (?, ?, ?, ?, ?, ?, ?)', (guild_id, name, user_id, price, speed, stamina, strength))
         conn.commit()
 
 bot.load_extension('cogs.Horses')

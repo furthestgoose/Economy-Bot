@@ -26,13 +26,15 @@ class MyView(discord.ui.View):
                 color=discord.Colour.red(),
             )
             await interaction.response.edit_message(embed=embed, view=None)
-            self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (self.bet, self.user_id))
+            guild_id = self.ctx.guild.id  # Retrieve guild ID
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (self.bet, guild_id, self.user_id))
             self.conn.commit()
             await interaction.followup.send(f"You lost {self.bet:,} coins")
     @discord.ui.button(label="Double Down", row=0, style=discord.ButtonStyle.primary)
     async def double(self,button, interaction):
         user_id = self.ctx.author.id
-        self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+        guild_id = self.ctx.guild.id 
+        self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
         row = self.c.fetchone()
         if row[0] < self.bet*2:
             embed = discord.Embed(
@@ -55,11 +57,11 @@ class MyView(discord.ui.View):
                 )
                 await interaction.response.edit_message(embed=embed, view=None)
                 if winner == "Player":
-                    self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (self.bet*4, self.user_id))
+                    self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (self.bet*4, guild_id, user_id))
                     self.conn.commit()
                     await interaction.followup.send(f"You've won {self.bet*3:,} coins")
                 else:
-                    self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (self.bet*2, self.user_id))
+                    self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (self.bet*2, guild_id, user_id))
                     self.conn.commit()
                     await interaction.followup.send(f"You lost {self.bet*2:,} coins") 
             else:
@@ -69,9 +71,10 @@ class MyView(discord.ui.View):
                     color=discord.Colour.red(),
                 )
                 await interaction.response.edit_message(embed=embed, view=None)
-                self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (self.bet*2, self.user_id))
+                self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (self.bet*2, guild_id, user_id))
                 self.conn.commit()
                 await interaction.followup.send(f"You lost {self.bet*2:,} coins")
+
 
 
     @discord.ui.button(label="Stand", row=0, style=discord.ButtonStyle.red)
@@ -87,11 +90,13 @@ class MyView(discord.ui.View):
         )
         await interaction.response.edit_message(embed=embed, view=None)
         if winner == "Player":
-            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (self.bet, self.user_id))
+            guild_id = self.ctx.guild.id  # Retrieve guild ID
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (self.bet, guild_id, self.user_id))
             self.conn.commit()
             await interaction.followup.send(f"You've won {self.bet:,} coins")
         else:
-            self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (self.bet, self.user_id))
+            guild_id = self.ctx.guild.id  # Retrieve guild ID
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (self.bet, guild_id, self.user_id))
             self.conn.commit()
             await interaction.followup.send(f"You lost {self.bet:,} coins")
             
@@ -177,49 +182,67 @@ class Games(commands.Cog):
 
     @discord.slash_command(name="blackjack", description="Play a game of blackjack")
     async def start_game(self, ctx, bet: int):
+        guild_id = ctx.guild.id
         user_id = ctx.author.id
-        self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+        self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
         row = self.c.fetchone()
+
+        if row is None:
+            await ctx.respond("You don't have a balance yet. Use `!register` to create an account.")
+            return
+
         if row[0] < bet:
             await ctx.respond("You don't have enough coins for this bet.")
             return
-        else:
-            game = BlackjackGame(ctx.author.id)
-            view = MyView(ctx, game, bet, user_id)
 
-            # Check for natural 21
-            player_value = game.calculate_hand_value(game.player_hand)
-            dealer_value = game.calculate_hand_value(game.dealer_hand)
+        game = BlackjackGame(ctx.author.id)
+        view = MyView(ctx, game, bet, user_id)
 
-            if player_value == 21 and dealer_value != 21:
-                await ctx.respond("Congratulations! You have a natural 21! You win!")
-                self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*2, user_id))
-                self.conn.commit()
-                await ctx.send(f"You've won {bet*2:,} coins")
-                return
-            elif dealer_value == 21 and player_value != 21:
-                await ctx.respond("Sorry, the dealer has a natural 21. You lose.")
-                self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (bet, user_id))
-                self.conn.commit()
-                await ctx.send(f"You lost {self.bet:,} coins")
-                return
-            elif player_value == 21 and dealer_value == 21:
-                await ctx.respond("Both you and the dealer have natural 21s. It's a push.")
-                return
+        # Check for natural 21
+        player_value = game.calculate_hand_value(game.player_hand)
+        dealer_value = game.calculate_hand_value(game.dealer_hand)
 
-            # If no natural 21s, continue with the game
-            player_hand_str = game.display_player_hand()
-            player_total = game.calculate_hand_value(game.player_hand)
-            dealer_first_card = f"{game.dealer_hand[0]['rank']} of {game.dealer_hand[0]['suit']}"
-            await ctx.respond(f"Your hand: {player_hand_str}\nTotal: {player_total}\nDealer's first card: {dealer_first_card}\nThe dealer stands on 17", view=view)
+        if player_value == 21 and dealer_value != 21:
+            await ctx.respond("Congratulations! You have a natural 21! You win!")
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (bet*2, guild_id, user_id))
+            self.conn.commit()
+            await ctx.send(f"You've won {bet*2:,} coins")
+            return
+        elif dealer_value == 21 and player_value != 21:
+            await ctx.respond("Sorry, the dealer has a natural 21. You lose.")
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (bet, guild_id, user_id))
+            self.conn.commit()
+            await ctx.send(f"You lost {bet:,} coins")
+            return
+        elif player_value == 21 and dealer_value == 21:
+            await ctx.respond("Both you and the dealer have natural 21s. It's a push.")
+            return
+
+        # If no natural 21s, continue with the game
+        player_hand_str = game.display_player_hand()
+        player_total = game.calculate_hand_value(game.player_hand)
+        dealer_first_card = f"{game.dealer_hand[0]['rank']} of {game.dealer_hand[0]['suit']}"
+        await ctx.respond(f"Your hand: {player_hand_str}\nTotal: {player_total}\nDealer's first card: {dealer_first_card}\nThe dealer stands on 17", view=view)
 
     @discord.slash_command(name="slots", description="Play the Slots")
     @commands.cooldown(1, 120, commands.BucketType.user)
     async def slot(self, ctx, bet: int):
+        guild_id = ctx.guild.id
         user_id = ctx.author.id
-        self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+
+        # Check the user's balance in the guild
+        self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
         row = self.c.fetchone()
-        if row[0] < bet:
+
+        if row is None:
+            # If the user doesn't have a balance in the guild, insert a new row with default balance
+            self.c.execute('INSERT INTO currency (guild_id, user_id) VALUES (?, ?)', (guild_id, user_id))
+            self.conn.commit()
+            balance = 0
+        else:
+            balance = row[0]
+
+        if balance < bet:
             await ctx.respond("You don't have enough coins for this bet.")
             return
 
@@ -238,17 +261,17 @@ class Games(commands.Cog):
         # Check for winning combinations
         if len(set(spin_result)) == 2:
             await ctx.respond(content=f"Congratulations! You won {bet*2:,} coins for two matches!", embed=embed)
-            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*3, user_id))
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (bet*3, guild_id, user_id))
             self.conn.commit()
         elif len(set(spin_result)) == 1:
             await ctx.respond(content=f"Congratulations! You won {bet*5:,} coins for three matches!", embed=embed)
-            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*10, user_id))
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (bet*10, guild_id, user_id))
             self.conn.commit()
         else:
             await ctx.respond(content=f"You lost {bet:,} coins, better luck next time!", embed=embed)
-            self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (bet, user_id))
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (bet, guild_id, user_id))
             self.conn.commit()
-
+            
     @slot.error
     async def slot_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
