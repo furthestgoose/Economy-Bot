@@ -122,26 +122,26 @@ class Stocks(commands.Cog):
         guild_id = ctx.guild.id 
 
         # Retrieve the stocks owned by the user from the database
-        self.c.execute('SELECT s.name, us.quantity, us.price FROM user_stocks AS us INNER JOIN stocks AS s ON us.stock_id = s.id WHERE us.user_id = ? AND s.guild_id = ?', (user_id, guild_id))
+        self.c.execute('SELECT s.name, SUM(us.quantity), us.price FROM user_stocks AS us INNER JOIN stocks AS s ON us.stock_id = s.id WHERE us.user_id = ? AND s.guild_id = ? GROUP BY s.name', (user_id, guild_id))
         user_stocks = self.c.fetchall()
 
         if user_stocks:
             stock_info = []
             total_change = 0
             for stock in user_stocks:
-                name, quantity, purchase_price = stock
+                name, total_quantity, purchase_price = stock
                 # Retrieve the current price of the stock
                 self.c.execute('SELECT price FROM stocks WHERE name = ? AND guild_id = ?', (name, guild_id))
                 current_price = self.c.fetchone()[0]
                 # Calculate the change in price
                 change = current_price - purchase_price
-                total_change += change * quantity
+                total_change += change * total_quantity
                 # Calculate the percentage change in price
                 if purchase_price != 0:
                     change_percentage = ((current_price - purchase_price) / purchase_price) * 100
                 else:
                     change_percentage = 0
-                stock_info.append(f"Name: {name}, Quantity: {quantity}, Current Price: {current_price}, Change (%): {change_percentage:.2f}%")
+                stock_info.append(f"Name: {name}, Quantity: {total_quantity}, Current Price: {current_price}, Change (%): {change_percentage:.2f}%")
 
             # Send the formatted list of stocks along with the total change
             embed = discord.Embed(
@@ -158,6 +158,7 @@ class Stocks(commands.Cog):
                 color=discord.Colour.red(),
             )
             await ctx.respond(embed=embed)
+
 
 
     @discord.slash_command(name="sell_stock", description="Sell a stock")
