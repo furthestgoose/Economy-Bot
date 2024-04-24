@@ -106,7 +106,7 @@ class Horses(commands.Cog):
 
         if horse:
             # Release ownership of the horse
-            horse_id, name, owner_id, price, speed, stamina, strength, horse_guild_id = horse
+            horse_id, horse_guild_id,name, owner_id, price, speed, stamina, strength = horse
             self.c.execute('UPDATE horses SET owner_id = NULL WHERE owner_id = ? AND guild_id = ?', (user_id, guild_id))
             self.conn.commit()
             embed = discord.Embed(
@@ -426,8 +426,8 @@ class Horses(commands.Cog):
         message += f"Winning Time: {race_results['time']} seconds\n"
 
         # Check if the user's horse won
-        if race_results['winner'] == user_horse[1]:
-            self.c.execute('UPDATE currency SET balance = balance + ? WHERE user_id = ?', (bet*4, user_id))
+        if race_results['winner'] == user_horse[2]:
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (bet*4, guild_id, user_id))
             self.conn.commit()
             message += f"\nCongratulations! Your horse won the race. You've received {bet*4:,} coins."
             embed = discord.Embed(
@@ -437,7 +437,7 @@ class Horses(commands.Cog):
                         )
             await ctx.respond(embed=embed)
         else:
-            self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (bet, user_id))
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (bet, guild_id, user_id))
             self.conn.commit()
             message += "\nBetter luck next time!"
             embed = discord.Embed(
@@ -445,6 +445,7 @@ class Horses(commands.Cog):
                             description=message,
                             color=discord.Colour.red(),
                         )
+            embed.add_field(name="Loss", value=f"{bet:,} coins have been deducted from your balance.")
             await ctx.respond(embed=embed)
 
     async def simulate_race(self, horses):
@@ -452,11 +453,11 @@ class Horses(commands.Cog):
 
         # Simulate the race by calculating the individual horse stats and race time
         for horse in horses:
-            speed = horse[4]
-            stamina = horse[5]
-            strength = horse[6]
+            speed = horse[5]
+            stamina = horse[6]
+            strength = horse[7]
             race_time = await self.calculate_race_time(speed, stamina, strength)
-            race_results.append((horse[1], speed, stamina, strength, race_time))
+            race_results.append((horse[2], speed, stamina, strength, race_time))
 
         # Determine the winner based on the race time (lowest time)
         race_results.sort(key=lambda x: x[4])
