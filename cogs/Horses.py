@@ -165,12 +165,12 @@ class Horses(commands.Cog):
             upgrade_cost = self.calculate_speed_upgrade_cost(current_speed)
         
             # Check if the user has enough funds to upgrade
-            self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+            self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
             row = self.c.fetchone()
         
             if row and row[0] >= upgrade_cost:
                 # Deduct the upgrade cost from the user's balance
-                self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (upgrade_cost, user_id))
+                self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (upgrade_cost, guild_id, user_id))
             
                 # Increase the horse's speed by 1, but limit it to 10
                 new_speed = min(current_speed + 1, 10)
@@ -224,12 +224,12 @@ class Horses(commands.Cog):
             upgrade_cost = self.calculate_strength_upgrade_cost(current_strength)
         
             # Check if the user has enough funds to upgrade
-            self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+            self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
             row = self.c.fetchone()
         
             if row and row[0] >= upgrade_cost:
                 # Deduct the upgrade cost from the user's balance
-                self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (upgrade_cost, user_id))
+                self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (upgrade_cost, guild_id, user_id))
             
                 # Increase the horse's strength by 1, but limit it to 10
                 new_strength = min(current_strength + 1, 10)
@@ -282,12 +282,12 @@ class Horses(commands.Cog):
             upgrade_cost = self.calculate_stamina_upgrade_cost(current_stamina)
         
             # Check if the user has enough funds to upgrade
-            self.c.execute('SELECT balance FROM currency WHERE user_id = ?', (user_id,))
+            self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
             row = self.c.fetchone()
         
             if row and row[0] >= upgrade_cost:
                 # Deduct the upgrade cost from the user's balance
-                self.c.execute('UPDATE currency SET balance = balance - ? WHERE user_id = ?', (upgrade_cost, user_id))
+                self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (upgrade_cost, guild_id, user_id))
             
                 # Increase the horse's stamina by 1, but limit it to 10
                 new_stamina = min(current_stamina + 1, 10)
