@@ -60,6 +60,10 @@ class MyView(discord.ui.View):
                     self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (self.bet*4, guild_id, user_id))
                     self.conn.commit()
                     await interaction.followup.send(f"You've won {self.bet*3:,} coins")
+                elif winner == "Push":
+                    self.c.execute('UPDATE currency SET balance = balance WHERE guild_id = ? AND user_id = ?', (self.bet, guild_id, user_id))
+                    self.conn.commit()
+                    await interaction.followup.send(f"It's a push, you get your bet back")
                 else:
                     self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (self.bet*2, guild_id, user_id))
                     self.conn.commit()
