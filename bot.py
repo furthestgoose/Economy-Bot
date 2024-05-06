@@ -84,7 +84,6 @@ async def help(ctx):
     embed.add_field(name="/buy_stock", value="Buy a stock", inline=False)
     embed.add_field(name="/sell_stock", value="Sell a stock", inline=False)
     embed.add_field(name="/view_stocks_info", value="View your stocks (prices update every 30 minutes)", inline=False)
-    embed.add
     await ctx.send(embed=embed)
 
 @bot.event
