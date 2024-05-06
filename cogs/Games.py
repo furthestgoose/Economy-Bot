@@ -275,6 +275,53 @@ class Games(commands.Cog):
             await ctx.respond(content=f"You lost {bet:,} coins, better luck next time!", embed=embed)
             self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (bet, guild_id, user_id))
             self.conn.commit()
+    
+    @discord.slash_command(name="coinflip", description="Flip a coin")
+    @commands.cooldown(1, 300, commands.BucketType.user)
+    async def coinflip(self, ctx, bet: int, choice: str):
+        guild_id = ctx.guild.id
+        user_id = ctx.author.id
+
+        # Check the user's balance in the guild
+        self.c.execute('SELECT balance FROM currency WHERE guild_id = ? AND user_id = ?', (guild_id, user_id))
+        row = self.c.fetchone()
+
+        if row is None:
+            # If the user doesn't have a balance in the guild, insert a new row with default balance
+            self.c.execute('INSERT INTO currency (guild_id, user_id) VALUES (?, ?)', (guild_id, user_id))
+            self.conn.commit()
+            balance = 0
+        else:
+            balance = row[0]
+
+        if balance < bet:
+            await ctx.respond("You don't have enough coins for this bet.")
+            return
+
+        if choice.lower() not in ['heads', 'tails']:
+            await ctx.respond("Invalid choice. Please choose either 'heads' or 'tails'.")
+            return
+
+        coin = random.choice(['heads', 'tails'])
+        if choice.lower() == coin:
+            embed = discord.Embed(
+                title="Coinflip",
+                description=f"The coin landed on {coin}. You won {bet*2:,} coins!",
+                color=discord.Colour.green(),
+            )
+            await ctx.respond(embed=embed)
+            self.c.execute('UPDATE currency SET balance = balance + ? WHERE guild_id = ? AND user_id = ?', (bet*2, guild_id, user_id))
+            self.conn.commit()
+        else:
+            embed = discord.Embed(
+                title="Coinflip",
+                description=f"The coin landed on {coin}. You lost {bet:,} coins.",
+                color=discord.Colour.red(),
+            )
+            await ctx.respond(embed=embed)
+            self.c.execute('UPDATE currency SET balance = balance - ? WHERE guild_id = ? AND user_id = ?', (bet, guild_id, user_id))
+            self.conn.commit()
+        
             
     @slot.error
     async def slot_error(self, ctx, error):
@@ -283,6 +330,17 @@ class Games(commands.Cog):
             embed = discord.Embed(
                 title="Cooldown",
                 description=f"You can only initiate slots once every 2 minutes. Try again in {int(retry_after):,} seconds.",
+                color=discord.Colour.red(),
+            )
+            await ctx.respond(embed=embed)
+
+    @coinflip.error
+    async def coinflip_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            retry_after = error.retry_after
+            embed = discord.Embed(
+                title="Cooldown",
+                description=f"You can only initiate a coinflip once every 5 minutes. Try again in {int(retry_after):,} seconds.",
                 color=discord.Colour.red(),
             )
             await ctx.respond(embed=embed)
