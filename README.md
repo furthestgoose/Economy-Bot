@@ -19,6 +19,20 @@ Welcome to the ultimate Discord bot for injecting fun and economy into your serv
 - **Balance and Leaderboard**: Keep track of your financial empire with ease. Check your balance or climb the ranks on our global leaderboard.
 - **Horse Management**: Invest in your horse's abilities by upgrading its stamina, speed, and strength. Witness firsthand the impact of your training on the racetrack!
 
+## ScreenShots
+
+### Blackjack
+![image](https://github.com/furthestgoose/Economy-Bot/assets/77462614/1f47292b-3736-4a9b-89fd-71ccaaf7def0)
+
+### Slots
+![image](https://github.com/furthestgoose/Economy-Bot/assets/77462614/a545c51c-cfd8-4902-9e7d-6f939cb4b996)
+
+### Horse Racing
+![image](https://github.com/furthestgoose/Economy-Bot/assets/77462614/12f51491-7765-4608-bca4-e2166099189a)
+
+### Stocks
+![image](https://github.com/furthestgoose/Economy-Bot/assets/77462614/a57d0340-2ae8-4701-b4bc-57b8a9b8c9c9)
+
 ## Usage
 To experience the excitement, simply invite our bot to your Discord server and start using the commands listed above. Whether you're a seasoned gambler, a savvy investor, or a competitive racer, there's something here for everyone!
 
