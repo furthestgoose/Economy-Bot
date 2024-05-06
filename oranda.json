@@ -1,0 +1,13 @@
+{
+    "project": {
+        "name": "Coin Critters",
+        "version": "1.0.0",
+        "repository": "https://github.com/furthestgoose/Economy-Bot"
+    },
+    "styles": {
+      "theme": "hacker"
+    },
+    "components": {
+      "changelog": false
+    }
+  }
